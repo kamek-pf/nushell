@@ -2,6 +2,9 @@ use nu_engine::command_prelude::*;
 use nu_protocol::{ListStream, Signals};
 use wax::{Glob as WaxGlob, WalkBehavior, WalkEntry};
 
+#[cfg(windows)]
+static DRIVE_LETTER_REGEX: std::sync::OnceLock<fancy_regex::Regex> = std::sync::OnceLock::new();
+
 #[derive(Clone)]
 pub struct Glob;
 
@@ -170,8 +173,11 @@ impl Command for Glob {
 
         #[cfg(windows)]
         {
-            let glob_pattern = fancy_regex::Regex::new("^([A-Za-z]):")
-                .expect("Invalid regex found for Windows specific glob expansion")
+            let glob_pattern = DRIVE_LETTER_REGEX
+                .get_or_init(|| {
+                    fancy_regex::Regex::new("^([A-Za-z]):")
+                        .expect("Invalid regex found for Windows specific glob expansion")
+                })
                 .captures(&glob_pattern)
                 .ok()
                 .flatten()
