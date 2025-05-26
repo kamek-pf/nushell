@@ -168,6 +168,24 @@ impl Command for Glob {
                 }),
             };
 
+        #[cfg(windows)]
+        {
+            let glob_pattern = fancy_regex::Regex::new("^([A-Za-z]):")
+                .expect("Invalid regex found for Windows specific glob expansion")
+                .captures(&glob_pattern)
+                .ok()
+                .flatten()
+                .and_then(|captures| captures.get(1))
+                .map(|capture| {
+                    let drive_letter = capture.as_str();
+                    glob_pattern.replace(
+                        &format!("{}:", drive_letter),
+                        &format!("{}\\:", drive_letter),
+                    )
+                })
+                .unwrap_or(glob_pattern);
+        }
+
         if glob_pattern.is_empty() {
             return Err(ShellError::GenericError {
                 error: "glob pattern must not be empty".into(),
