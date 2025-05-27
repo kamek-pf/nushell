@@ -170,15 +170,15 @@ impl Command for Glob {
 
         // paths starting with drive letters must be escaped on Windows
         #[cfg(windows)]
-        {
+        let glob_pattern = {
             let mut chars = glob_pattern.chars();
-            let glob_pattern = match (chars.next(), chars.next()) {
+            match (chars.next(), chars.next()) {
                 (Some(drive), Some(':')) if drive.is_ascii_alphabetic() => {
                     format!("{drive}\\:{}", chars.as_str())
                 }
                 _ => glob_pattern,
-            };
-        }
+            }
+        };
 
         if glob_pattern.is_empty() {
             return Err(ShellError::GenericError {
