@@ -2,9 +2,6 @@ use nu_engine::command_prelude::*;
 use nu_protocol::{ListStream, Signals};
 use wax::{Glob as WaxGlob, WalkBehavior, WalkEntry};
 
-#[cfg(windows)]
-static DRIVE_LETTER_REGEX: std::sync::OnceLock<fancy_regex::Regex> = std::sync::OnceLock::new();
-
 #[derive(Clone)]
 pub struct Glob;
 
@@ -171,25 +168,16 @@ impl Command for Glob {
                 }),
             };
 
+        // paths starting with drive letters must be escaped on Windows
         #[cfg(windows)]
         {
-            let glob_pattern = DRIVE_LETTER_REGEX
-                .get_or_init(|| {
-                    fancy_regex::Regex::new("^([A-Za-z]):")
-                        .expect("Invalid regex found for Windows specific glob expansion")
-                })
-                .captures(&glob_pattern)
-                .ok()
-                .flatten()
-                .and_then(|captures| captures.get(1))
-                .map(|capture| {
-                    let drive_letter = capture.as_str();
-                    glob_pattern.replace(
-                        &format!("{}:", drive_letter),
-                        &format!("{}\\:", drive_letter),
-                    )
-                })
-                .unwrap_or(glob_pattern);
+            let mut chars = glob_pattern.chars();
+            let glob_pattern = match (chars.next(), chars.next()) {
+                (Some(drive), Some(':')) if drive.is_ascii_alphabetic() => {
+                    format!("{drive}\\:{}", chars.as_str())
+                }
+                _ => glob_pattern,
+            };
         }
 
         if glob_pattern.is_empty() {
